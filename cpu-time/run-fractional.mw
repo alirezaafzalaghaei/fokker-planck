@@ -1,0 +1,68 @@
+restart:
+
+with(orthopoly):
+with(plots):
+with(Optimization):
+with(LinearAlgebra):
+Digits := 15:
+
+
+a, b := 0, 2:
+shift := (2 * x - a - b)/(b - a):
+
+dt := evalf(Tfinal/Ntime):
+
+n := 1:
+train := [fsolve(P(n + 1, shift))]:
+
+Tfinal := 1:
+alpha := 0.8:
+
+A := (x, t, u) -> 1:
+B := (x, t, u) -> -1:
+
+
+for Ntime in [1500, 2000, 3000, 4000, 5000] do
+    ALL_TIMES1 :=[]:
+    ALL_TIMES2 :=[]:
+    for tmp from 1 to 5 do
+        w:='w':
+        e:='e':
+        u:='u':
+        u[0] := x -> x:
+        solutions := [u[0](x)]:
+        Times := [0]:
+
+        theta := 1/(GAMMA(2 - alpha)*dt^alpha):
+        mu := (n, k) -> (n - k - 1)^(1 - alpha) - (n - k)^(1 - alpha):
+        TIMES1 :=[]:
+        TIMES2 :=[]:
+        for j from 0 to Ntime do
+            ti := time():
+            t := j*dt:
+            FD[j] := -theta*(mu(j, j - 1)*u[j + 1](x) + add((mu(j + 1, k - 1) - mu(j + 1, k))*u[k](x), k = 1 .. j) - mu(j + 1, 0)*u[0](x)):
+            Res := unapply(FD[j] - 1/2*((D@@1)(u[j + 1])(x)*A(x, t, u[j + 1]) + (D@@2)(u[j + 1])(x)*B(x, t, u[j + 1]) + (D@@1)(u[j])(x)*A(x, t, u[j]) + (D@@2)(u[j])(x)*B(x, t, u[j])), x):
+            u[j + 1] := unapply(add(w[i, j]*P(i, shift), i = 0 .. n), x):
+            constraints := {seq(Res(train[i]) = e[i, j], i = 1 .. nops(train))}:
+            cost := add(e[i, j]^2, i = 1 .. nops(train)):
+            ti := time() - ti:
+            TIMES1 := [op(TIMES1), ti]:
+            ti := time():
+            result := QPSolve(cost, constraints):
+            assign(result[2]):
+            ti := time() - ti:
+            TIMES2 := [op(TIMES2), ti]:
+            solutions := [op(solutions), u[j + 1](x)]:
+            Times := [op(Times), t]:
+        end do:
+
+        ALL_TIMES1 := [op(ALL_TIMES1), TIMES1]:
+        ALL_TIMES2 := [op(ALL_TIMES2), TIMES2]:
+    end:
+    TIMES1 := Matrix(ALL_TIMES1):
+    TIMES2 := Matrix(ALL_TIMES2):
+    save TIMES1, sprintf("runs-fractional/times1-%d",Ntime):
+    save TIMES2, sprintf("runs-fractional/times2-%d",Ntime):
+end:
+
+

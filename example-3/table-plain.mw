@@ -1,0 +1,53 @@
+restart:
+with(orthopoly):
+with(plots):
+with(Optimization):
+
+with(LinearAlgebra):
+Digits := 15:
+
+a, b := 0, 1:
+shift := (2 * x - a - b)/(b - a):
+
+A := (x, t, u) -> 7/2*u(x);
+B := (x, t, u) -> x*u(x);
+Exact := (x, t) -> x/(t + 1);
+
+for Ntime in [50, 100, 500, 1000, 2000] do
+    for Tfinal in [0.1, 0.5, 1, 2, 5] do
+        w:='w':
+        e:='e':
+        u:='u':
+
+        dt := evalf(Tfinal/Ntime):
+        n := 1:
+        train := [fsolve(P(n + 1, shift))]:
+        u[1] := x -> Exact(x, 0):
+
+        solutions := [u[1](x)]:
+        Times := [0]:
+
+        for j to Ntime do
+            t := j*dt:
+            Res := x -> (u[j + 1](x) - u[j](x))/dt + 1/2*subs(z = x, diff(u[j + 1](z)*A(z, t, u[j + 1]), z)) - 1/2*subs(z = x, diff(u[j + 1](z)*B(z, t, u[j + 1]), z $ 2)) + 1/2*subs(z = x, diff(u[j + 1](z)*A(z, t, u[j]), z)) - 1/2*subs(z = x, diff(u[j](z)*B(z, t, u[j + 1]), z $ 2));
+            u[j + 1] := unapply(add(w[i, j]*P(i, shift), i = 0 .. n), x):
+            constraints := {seq(Res(train[i]) = e[i, j], i = 1 .. nops(train))}:
+            cost := add(e[i, j]^2, i = 1 .. nops(train)):
+            result := NLPSolve(cost, constraints):
+            assign(result[2]):
+            solutions := [op(solutions), u[j + 1](x)]:
+            Times := [op(Times), t]:
+        end do:
+
+        test := seq(i, i = a .. b, 1/100.):
+        prediction := Matrix([seq([seq(evalf(solution(x)), x in test)], solution in solutions)]):
+        exact := Matrix([seq([seq(evalf(Exact(x, t)), x in test)], t in Times)]):
+
+        residual := exact - prediction:
+
+        MAE := add(abs(residual))/mul([Dimension(prediction)]):
+        file := fopen("table.txt", APPEND):
+        fprintf(file, "Ntime = %d, T = %g, E = %.2e\n", Ntime, Tfinal, MAE):
+        fclose(file):
+    end:
+end:

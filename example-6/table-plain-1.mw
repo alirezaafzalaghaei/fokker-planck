@@ -1,0 +1,57 @@
+restart:
+
+with(orthopoly):
+with(plots):
+with(Optimization):
+with(LinearAlgebra):
+Digits := 15:
+
+
+a, b := 0, 2:
+shift := (2 * x - a - b)/(b - a):
+
+Ntime := 1000:
+
+dt := evalf(Tfinal/Ntime):
+
+n := 2:
+train := [fsolve(P(n + 1, shift))]:
+
+
+A := (x, t, u) -> 1/6*x;
+B := (x, t, u) -> 1/12*x^2;
+
+
+for alpha in [0.9, 0.8, 0.7, 0.6, 0.5] do
+    for Tfinal in seq(i, i=0.1..1, 0.1) do
+        w:='w':
+        e:='e':
+        u:='u':
+        u[0] := x -> x^2:
+        solutions := [u[0](x)]:
+        Times := [0]:
+
+        theta := 1/(GAMMA(2 - alpha)*dt^alpha):
+        mu := (n, k) -> (n - k - 1)^(1 - alpha) - (n - k)^(1 - alpha):
+        for j from 0 to Ntime do
+            t := j*dt:
+            FD[j] := -theta*(mu(j, j - 1)*u[j + 1](x) + add((mu(j + 1, k - 1) - mu(j + 1, k))*u[k](x), k = 1 .. j) - mu(j + 1, 0)*u[0](x)):
+            Res := unapply(FD[j] - 1/2*((D@@1)(u[j + 1])(x)*A(x, t, u[j + 1]) + (D@@2)(u[j + 1])(x)*B(x, t, u[j + 1]) + (D@@1)(u[j])(x)*A(x, t, u[j]) + (D@@2)(u[j])(x)*B(x, t, u[j])), x):
+            u[j + 1] := unapply(add(w[i, j]*P(i, shift), i = 0 .. n), x):
+            constraints := {seq(Res(train[i]) = e[i, j], i = 1 .. nops(train))}:
+            cost := add(e[i, j]^2, i = 1 .. nops(train)):
+            result := QPSolve(cost, constraints):
+            assign(result[2]):
+            solutions := [op(solutions), u[j + 1](x)]:
+            Times := [op(Times), t]:
+        end do:
+
+        file := fopen("table.txt", APPEND):
+        for X in [1] do
+            fprintf(file, "alpha = %.2f, T = %g, x = %g, U = %.7f\n", alpha,Times[-1], X, subs(x = X, solutions[-1])):
+        end do:
+        fclose(file):
+    end:
+end:
+
+
